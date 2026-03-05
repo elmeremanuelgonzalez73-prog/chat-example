@@ -2,56 +2,123 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Socket.IO chat</title>
+  <title>Chat Privado con Salas</title>
   <style>
-      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-      #input:focus { outline: none; }
-      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
-
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages > li { padding: 0.5rem 1rem; }
-      #messages > li:nth-child(odd) { background: #efefef; }
+    body { margin: 0; padding-bottom: 5rem; font-family: Arial, sans-serif; background: #f0f2f5; }
+    #join-form { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2); text-align: center; width: 90%; max-width: 400px; }
+    #join-form input { width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: 1px solid #ddd; border-radius: 5px; }
+    #join-form button { background: #007bff; color: white; border: none; padding: 0.8rem 1.5rem; margin-top: 1rem; border-radius: 5px; cursor: pointer; width: 100%; }
+    #chat-container { display: none; }
+    #form { background: white; padding: 0.5rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3.5rem; box-sizing: border-box; }
+    #input { border: 1px solid #ddd; padding: 0 1rem; flex-grow: 1; border-radius: 20px; margin: 0.25rem; }
+    #input:focus { outline: none; border-color: #007bff; }
+    #form > button { background: #007bff; border: none; padding: 0 1.5rem; margin: 0.25rem; border-radius: 20px; color: white; cursor: pointer; }
+    #messages { list-style-type: none; margin: 1rem; padding: 0; }
+    #messages > li { padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 15px; max-width: 80%; word-wrap: break-word; }
+    #messages > li.sent { background: #007bff; color: white; margin-left: auto; }
+    #messages > li.received { background: #e9ecef; margin-right: auto; }
   </style>
 </head>
 <body>
-  <ul id="messages"></ul>
-  <form id="form" action="">
-    <input id="input" autocomplete="off" /><button>Send</button>
-  </form>
+
+  <!-- Formulario para unirse (al inicio) -->
+  <div id="join-form">
+    <h2>Únete al Chat</h2>
+    <input id="username" placeholder="Tu nombre" autocomplete="off" required /><br>
+    <input id="room" placeholder="Código de sala (ej: sala123)" autocomplete="off" required /><br>
+    <button id="join-btn">Entrar</button>
+  </div>
+
+  <!-- Contenedor del chat (oculto al inicio) -->
+  <div id="chat-container">
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
+      <button>Enviar</button>
+    </form>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    let counter = 0;
+    const socket = io();
 
-    const socket = io({
-      auth: {
-        serverOffset: 0
-      },
-      ackTimeout: 10000,
-      retries: 3,
-    });
-
+    const joinForm = document.getElementById('join-form');
+    const chatContainer = document.getElementById('chat-container');
+    const joinBtn = document.getElementById('join-btn');
+    const usernameInput = document.getElementById('username');
+    const roomInput = document.getElementById('room');
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const messages = document.getElementById('messages');
 
+    let username = '';
+    let room = '';
+
+    // Botón para unirse
+    joinBtn.addEventListener('click', () => {
+      username = usernameInput.value.trim();
+      room = roomInput.value.trim();
+
+      if (!username || !room) {
+        alert('Ingresa tu nombre y un código de sala');
+        return;
+      }
+
+      socket.emit('join room', room);
+      joinForm.style.display = 'none';
+      chatContainer.style.display = 'block';
+      document.title = `Sala: ${room}`;
+    });
+
+    // Enviar mensaje
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (input.value) {
-        const clientOffset = `${socket.id}-${counter++}`;
-        socket.emit('chat message', input.value, clientOffset);
+        socket.emit('chat message', {
+          room: room,
+          username: username,
+          msg: input.value
+        });
         input.value = '';
       }
     });
 
-    socket.on('chat message', (msg, serverOffset) => {
+    // Recibir mensaje nuevo
+    socket.on('chat message', (data) => {
       const item = document.createElement('li');
-      item.textContent = msg;
+      item.textContent = `${data.username}: ${data.msg}`;
+      if (data.username === username) {
+        item.classList.add('sent');
+      } else {
+        item.classList.add('received');
+      }
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
-      socket.auth.serverOffset = serverOffset;
+    });
+
+    // Cargar mensajes anteriores al entrar
+    socket.on('load messages', (oldMessages) => {
+      oldMessages.forEach(data => {
+        const item = document.createElement('li');
+        item.textContent = `${data.username}: ${data.message}`;
+        if (data.username === username) {
+          item.classList.add('sent');
+        } else {
+          item.classList.add('received');
+        }
+        messages.appendChild(item);
+      });
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    // Mensaje del sistema (opcional, ej: "Te uniste")
+    socket.on('message', (msg) => {
+      const item = document.createElement('li');
+      item.textContent = msg;
+      item.style.color = '#888';
+      item.style.fontStyle = 'italic';
+      messages.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
     });
   </script>
 </body>
