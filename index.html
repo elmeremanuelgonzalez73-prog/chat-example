@@ -10,54 +10,36 @@
       background: #0f0f0f;
       color: #fff;
       height: 100vh;
-      overflow: hidden;
-    }
-    #login {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.95);
       display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
+      flex-direction: column;
     }
-    .login-box {
+
+    /* Barra superior para nombre y sala */
+    #header {
       background: #1e1e1e;
-      padding: 40px 30px;
-      border-radius: 16px;
-      width: 340px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      padding: 12px 15px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid #333;
     }
-    h2 { margin: 0 0 25px 0; color: #fff; }
-    input {
-      width: 100%;
-      padding: 14px;
-      margin: 12px 0;
+    #header input {
+      flex: 1;
+      padding: 10px;
       background: #2c2c2e;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       color: white;
-      font-size: 16px;
     }
-    button {
-      width: 100%;
-      padding: 14px;
+    #header button {
+      padding: 10px 16px;
       background: #0084ff;
       color: white;
       border: none;
-      border-radius: 10px;
-      font-size: 16px;
+      border-radius: 8px;
       cursor: pointer;
-      margin-top: 15px;
     }
-    button:hover { background: #0066cc; }
 
-    #chat {
-      display: none;
-      flex-direction: column;
-      height: 100vh;
-    }
     #messages {
       list-style: none;
       margin: 0;
@@ -84,6 +66,7 @@
       color: white;
       align-self: flex-start;
     }
+
     #form {
       background: #1e1e1e;
       padding: 10px;
@@ -109,59 +92,52 @@
 </head>
 <body>
 
-  <!-- Pantalla de ingreso -->
-  <div id="login">
-    <div class="login-box">
-      <h2>Entrar al Chat</h2>
-      <input type="text" id="usernameInput" placeholder="Tu nombre de usuario" maxlength="20">
-      <input type="text" id="roomInput" placeholder="Código de la sala" value="general">
-      <button onclick="joinChat()">Entrar al Chat</button>
-    </div>
+  <!-- Barra superior -->
+  <div id="header">
+    <input type="text" id="usernameInput" placeholder="Tu nombre" value="Usuario">
+    <input type="text" id="roomInput" placeholder="Sala" value="general">
+    <button onclick="updateUserAndRoom()">Actualizar</button>
   </div>
 
-  <!-- Pantalla del chat -->
-  <div id="chat">
-    <ul id="messages"></ul>
-    
-    <form id="form">
-      <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
-      <button type="submit">Enviar</button>
-    </form>
-  </div>
+  <!-- Chat -->
+  <ul id="messages"></ul>
+  
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
+    <button type="submit">Enviar</button>
+  </form>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    let username = "";
+    let username = "Usuario";
     let room = "general";
     let socket;
 
-    function joinChat() {
-      username = document.getElementById("usernameInput").value.trim();
+    function startChat() {
+      username = document.getElementById("usernameInput").value.trim() || "Usuario";
       room = document.getElementById("roomInput").value.trim() || "general";
 
-      if (!username) {
-        alert("Por favor ingresa tu nombre de usuario");
-        return;
-      }
-
-      // Ocultar pantalla de login y mostrar chat
-      document.getElementById("login").style.display = "none";
-      document.getElementById("chat").style.display = "flex";
-
-      // Conectar al servidor
       socket = io();
-
       socket.emit('join room', { username, room });
 
-      // Cargar historial de mensajes
+      // Cargar historial
       socket.on('load messages', (history) => {
         history.forEach(msg => addMessage(msg));
       });
 
-      // Recibir nuevos mensajes
+      // Recibir mensajes
       socket.on('chat message', (data) => {
         addMessage(data);
       });
+    }
+
+    // Actualizar nombre y sala
+    function updateUserAndRoom() {
+      username = document.getElementById("usernameInput").value.trim() || "Usuario";
+      room = document.getElementById("roomInput").value.trim() || "general";
+      if (socket) {
+        socket.emit('join room', { username, room });
+      }
     }
 
     const form = document.getElementById('form');
@@ -182,7 +158,6 @@
 
     function addMessage(data) {
       const item = document.createElement('li');
-      
       if (data.username === username) {
         item.classList.add('my-message');
         item.innerHTML = `<strong>Yo:</strong> ${data.message}`;
@@ -190,10 +165,12 @@
         item.classList.add('other-message');
         item.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
       }
-      
       messages.appendChild(item);
       messages.scrollTop = messages.scrollHeight;
     }
+
+    // Iniciar el chat automáticamente al cargar la página
+    window.onload = startChat;
   </script>
 </body>
 </html>
