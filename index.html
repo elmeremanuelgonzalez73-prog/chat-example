@@ -1,122 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Chat Privado con Salas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Sala</title>
   <style>
-    body { margin: 0; padding-bottom: 5rem; font-family: Arial, sans-serif; background: #f0f2f5; }
-    #join-form { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2); text-align: center; width: 90%; max-width: 400px; }
-    #join-form input { width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: 1px solid #ddd; border-radius: 5px; }
-    #join-form button { background: #007bff; color: white; border: none; padding: 0.8rem 1.5rem; margin-top: 1rem; border-radius: 5px; cursor: pointer; width: 100%; }
-    #chat-container { display: none; }
-    #form { background: white; padding: 0.5rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3.5rem; box-sizing: border-box; }
-    #input { border: 1px solid #ddd; padding: 0 1rem; flex-grow: 1; border-radius: 20px; margin: 0.25rem; }
-    #input:focus { outline: none; border-color: #007bff; }
-    #form > button { background: #007bff; border: none; padding: 0 1.5rem; margin: 0.25rem; border-radius: 20px; color: white; cursor: pointer; }
-    #messages { list-style-type: none; margin: 1rem; padding: 0; }
-    #messages > li { padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 15px; max-width: 80%; word-wrap: break-word; }
-    #messages > li.sent { background: #007bff; color: white; margin-left: auto; }
-    #messages > li.received { background: #e9ecef; margin-right: auto; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #121212;
+      color: #fff;
+    }
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 15px;
+      height: calc(100vh - 70px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    #messages li {
+      padding: 10px 15px;
+      margin: 6px 0;
+      border-radius: 18px;
+      max-width: 75%;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+    .my-message {
+      background-color: #0084ff;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .other-message {
+      background-color: #2c2c2e;
+      color: #fff;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    #form {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e1e1e;
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+    }
+    #input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 25px;
+      background: #2c2c2e;
+      color: white;
+      font-size: 16px;
+    }
+    #input:focus {
+      outline: none;
+    }
+    button {
+      padding: 12px 20px;
+      background: #0084ff;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+    }
+    strong {
+      color: #00ff9d;
+    }
   </style>
 </head>
 <body>
-
-  <!-- Formulario para unirse (al inicio) -->
-  <div id="join-form">
-    <h2>Únete al Chat</h2>
-    <input id="username" placeholder="Tu nombre" autocomplete="off" required /><br>
-    <input id="room" placeholder="Código de sala (ej: sala123)" autocomplete="off" required /><br>
-    <button id="join-btn">Entrar</button>
-  </div>
-
-  <!-- Contenedor del chat (oculto al inicio) -->
-  <div id="chat-container">
-    <ul id="messages"></ul>
-    <form id="form" action="">
-      <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
-      <button>Enviar</button>
-    </form>
-  </div>
+  <ul id="messages"></ul>
+  
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
+    <button>Enviar</button>
+  </form>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    let username = "";
+    let room = "general";
+
+    // Pedir nombre de usuario
+    while (!username) {
+      username = prompt("Ingresa tu nombre de usuario:");
+    }
+
+    // Pedir código de sala (opcional)
+    room = prompt("Ingresa el código de la sala (o déjalo vacío para sala general):") || "general";
+
     const socket = io();
 
-    const joinForm = document.getElementById('join-form');
-    const chatContainer = document.getElementById('chat-container');
-    const joinBtn = document.getElementById('join-btn');
-    const usernameInput = document.getElementById('username');
-    const roomInput = document.getElementById('room');
+    // Unirse a la sala
+    socket.emit('join room', { username: username, room: room });
+
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const messages = document.getElementById('messages');
 
-    let username = '';
-    let room = '';
-
-    // Botón para unirse
-    joinBtn.addEventListener('click', () => {
-      username = usernameInput.value.trim();
-      room = roomInput.value.trim();
-
-      if (!username || !room) {
-        alert('Ingresa tu nombre y un código de sala');
-        return;
-      }
-
-      socket.emit('join room', room);
-      joinForm.style.display = 'none';
-      chatContainer.style.display = 'block';
-      document.title = `Sala: ${room}`;
-    });
-
-    // Enviar mensaje
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (input.value) {
+      if (input.value.trim()) {
         socket.emit('chat message', {
           room: room,
           username: username,
-          msg: input.value
+          message: input.value.trim()
         });
         input.value = '';
       }
     });
 
-    // Recibir mensaje nuevo
+    // Recibir mensajes
     socket.on('chat message', (data) => {
       const item = document.createElement('li');
-      item.textContent = `${data.username}: ${data.msg}`;
+      
       if (data.username === username) {
-        item.classList.add('sent');
+        item.classList.add('my-message');
+        item.innerHTML = `<strong>Yo:</strong> ${data.message}`;
       } else {
-        item.classList.add('received');
+        item.classList.add('other-message');
+        item.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
       }
+
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
     });
 
-    // Cargar mensajes anteriores al entrar
-    socket.on('load messages', (oldMessages) => {
-      oldMessages.forEach(data => {
-        const item = document.createElement('li');
-        item.textContent = `${data.username}: ${data.message}`;
-        if (data.username === username) {
-          item.classList.add('sent');
-        } else {
-          item.classList.add('received');
-        }
-        messages.appendChild(item);
-      });
-      window.scrollTo(0, document.body.scrollHeight);
-    });
-
-    // Mensaje del sistema (opcional, ej: "Te uniste")
-    socket.on('message', (msg) => {
+    // Mensaje de bienvenida
+    socket.on('user joined', (data) => {
       const item = document.createElement('li');
-      item.textContent = msg;
       item.style.color = '#888';
-      item.style.fontStyle = 'italic';
+      item.style.textAlign = 'center';
+      item.textContent = `${data.username} se unió a la sala`;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
     });
