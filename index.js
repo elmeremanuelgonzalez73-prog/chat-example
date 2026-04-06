@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
   res.sendFile(join(__dirname, 'index.html'));
 });
 
-// Base de datos
+// Base de datos persistente
 const db = await open({
   filename: 'chat.db',
   driver: sqlite3.Database
@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
     socket.room = data.room || "general";
     socket.join(socket.room);
 
-    // Cargar historial de mensajes de la sala
+    // Cargar TODO el historial guardado de esa sala
     const history = await db.all(
       'SELECT username, message FROM messages WHERE room = ? ORDER BY id ASC',
       [socket.room]
@@ -50,13 +50,13 @@ io.on('connection', (socket) => {
   socket.on('chat message', async (data) => {
     if (!data.message || !data.username) return;
 
-    // Guardar mensaje permanentemente
+    // Guardar mensaje en la base de datos (persistencia total)
     await db.run(
       'INSERT INTO messages (room, username, message) VALUES (?, ?, ?)',
       [data.room, data.username, data.message]
     );
 
-    // Enviar a todos en la sala
+    // Enviar mensaje a todos en la sala
     io.to(data.room).emit('chat message', {
       username: data.username,
       message: data.message
@@ -66,5 +66,5 @@ io.on('connection', (socket) => {
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
-  console.log(`Chat corriendo en puerto ${port}`);
+  console.log(`Chat permanente corriendo en puerto ${port}`);
 });
