@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Permanente</title>
+  <title>Chat</title>
   <style>
     body {
       margin: 0;
@@ -14,6 +14,7 @@
       flex-direction: column;
     }
 
+    /* Barra superior simple */
     #header {
       background: #1e1e1e;
       padding: 12px 15px;
@@ -31,7 +32,7 @@
       color: white;
     }
     #header button {
-      padding: 10px 16px;
+      padding: 10px 18px;
       background: #0084ff;
       color: white;
       border: none;
@@ -90,12 +91,14 @@
 </head>
 <body>
 
+  <!-- Barra superior (menú normal) -->
   <div id="header">
-    <input type="text" id="usernameInput" placeholder="Tu nombre" value="Usuario">
-    <input type="text" id="roomInput" placeholder="Sala" value="general">
-    <button onclick="updateUserAndRoom()">Actualizar</button>
+    <input type="text" id="usernameInput" placeholder="Nombre de usuario" value="Usuario">
+    <input type="text" id="roomInput" placeholder="Código de sala" value="general">
+    <button onclick="updateInfo()">Actualizar</button>
   </div>
 
+  <!-- Área del chat -->
   <ul id="messages"></ul>
   
   <form id="form">
@@ -116,21 +119,21 @@
       socket = io();
       socket.emit('join room', { username, room });
 
-      // Cargar todo el historial guardado
       socket.on('load messages', (history) => {
         history.forEach(msg => addMessage(msg));
       });
 
-      // Recibir mensajes nuevos
       socket.on('chat message', (data) => {
         addMessage(data);
       });
     }
 
-    function updateUserAndRoom() {
+    function updateInfo() {
       username = document.getElementById("usernameInput").value.trim() || "Usuario";
       room = document.getElementById("roomInput").value.trim() || "general";
-      if (socket) socket.emit('join room', { username, room });
+      if (socket) {
+        socket.emit('join room', { username, room });
+      }
     }
 
     const form = document.getElementById('form');
@@ -162,7 +165,7 @@
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // Iniciar automáticamente al cargar la página
+    // Iniciar el chat automáticamente
     window.onload = startChat;
   </script>
 </body>
