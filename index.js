@@ -8,13 +8,10 @@ import { open } from 'sqlite';
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  connectionStateRecovery: {}
-});
+const io = new Server(server);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Servir el index.html
 app.get('/', (req, res) => {
   res.sendFile(join(__dirname, 'index.html'));
 });
@@ -35,22 +32,25 @@ await db.exec(`
   );
 `);
 
-// Conexión
 io.on('connection', (socket) => {
 
-  socket.on('join room', (data) => {
+  socket.on('join room', async (data) => {
     socket.username = data.username;
     socket.room = data.room || "general";
     socket.join(socket.room);
 
-    // Enviar mensaje de unión
-    socket.to(socket.room).emit('user joined', { username: socket.username });
+    // Cargar historial de mensajes de la sala
+    const history = await db.all(
+      'SELECT username, message FROM messages WHERE room = ? ORDER BY id ASC',
+      [socket.room]
+    );
+    socket.emit('load messages', history);
   });
 
   socket.on('chat message', async (data) => {
     if (!data.message || !data.username) return;
 
-    // Guardar en base de datos
+    // Guardar mensaje permanentemente
     await db.run(
       'INSERT INTO messages (room, username, message) VALUES (?, ?, ?)',
       [data.room, data.username, data.message]
@@ -62,18 +62,9 @@ io.on('connection', (socket) => {
       message: data.message
     });
   });
-
-  // Cargar mensajes anteriores al unirse
-  socket.on('load messages', async () => {
-    const rows = await db.all(
-      'SELECT username, message FROM messages WHERE room = ? ORDER BY id ASC',
-      [socket.room]
-    );
-    socket.emit('load messages', rows);
-  });
 });
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
-  console.log(`Servidor corriendo en http://localhost:${port}`);
+  console.log(`Chat corriendo en puerto ${port}`);
 });
