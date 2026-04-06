@@ -4,12 +4,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat Permanente</title>
   <style>
-    body { margin:0; font-family: system-ui; background:#121212; color:#fff; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #login {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .login-box {
+      background: #1e1e1e;
+      padding: 40px 30px;
+      border-radius: 16px;
+      width: 340px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 { margin: 0 0 25px 0; }
+    input {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      background: #2c2c2e;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #0084ff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { background: #0066cc; }
+
+    #chat {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+    }
     #messages {
       list-style: none;
       margin: 0;
       padding: 15px;
-      height: calc(100vh - 70px);
+      flex: 1;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -32,8 +85,6 @@
       align-self: flex-start;
     }
     #form {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
       background: #1e1e1e;
       padding: 10px;
       display: flex;
@@ -41,46 +92,84 @@
     }
     #input {
       flex: 1;
-      padding: 12px;
+      padding: 14px;
+      background: #2c2c2e;
       border: none;
       border-radius: 25px;
-      background: #2c2c2e;
       color: white;
+      font-size: 16px;
     }
-    button {
-      padding: 12px 20px;
+    button[type="submit"] {
+      padding: 14px 24px;
       background: #0084ff;
-      color: white;
       border: none;
       border-radius: 25px;
     }
   </style>
 </head>
 <body>
-  <ul id="messages"></ul>
-  
-  <form id="form">
-    <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
-    <button>Enviar</button>
-  </form>
+
+  <!-- Pantalla de Login -->
+  <div id="login">
+    <div class="login-box">
+      <h2>Entrar al Chat</h2>
+      <input type="text" id="usernameInput" placeholder="Tu nombre de usuario" maxlength="20">
+      <input type="text" id="roomInput" placeholder="Código de la sala" value="general">
+      <button onclick="joinChat()">Entrar</button>
+    </div>
+  </div>
+
+  <!-- Pantalla del Chat -->
+  <div id="chat">
+    <ul id="messages"></ul>
+    
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
+      <button type="submit">Enviar</button>
+    </form>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    let username = prompt("Ingresa tu nombre:");
-    let room = prompt("Código de la sala (o déjalo vacío):") || "general";
+    let username = "";
+    let room = "general";
+    let socket;
 
-    const socket = io();
+    function joinChat() {
+      username = document.getElementById("usernameInput").value.trim();
+      room = document.getElementById("roomInput").value.trim() || "general";
 
-    socket.emit('join room', { username, room });
+      if (!username) {
+        alert("Por favor ingresa un nombre de usuario");
+        return;
+      }
+
+      // Ocultar login y mostrar chat
+      document.getElementById("login").style.display = "none";
+      document.getElementById("chat").style.display = "flex";
+
+      // Conectar
+      socket = io();
+      socket.emit('join room', { username, room });
+
+      // Cargar historial
+      socket.on('load messages', (history) => {
+        history.forEach(msg => addMessage(msg));
+      });
+
+      // Recibir mensajes nuevos
+      socket.on('chat message', (data) => {
+        addMessage(data);
+      });
+    }
 
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const messages = document.getElementById('messages');
 
-    // Enviar mensaje
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (input.value.trim()) {
+      if (input.value.trim() && socket) {
         socket.emit('chat message', {
           room: room,
           username: username,
@@ -88,16 +177,6 @@
         });
         input.value = '';
       }
-    });
-
-    // Recibir mensaje nuevo
-    socket.on('chat message', (data) => {
-      addMessage(data);
-    });
-
-    // Cargar historial al entrar
-    socket.on('load messages', (history) => {
-      history.forEach(msg => addMessage(msg));
     });
 
     function addMessage(data) {
