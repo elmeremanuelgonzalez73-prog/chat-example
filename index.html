@@ -14,7 +14,6 @@
       flex-direction: column;
     }
 
-    /* Barra superior para nombre y sala */
     #header {
       background: #1e1e1e;
       padding: 12px 15px;
@@ -80,7 +79,6 @@
       border: none;
       border-radius: 25px;
       color: white;
-      font-size: 16px;
     }
     button[type="submit"] {
       padding: 14px 24px;
@@ -92,14 +90,12 @@
 </head>
 <body>
 
-  <!-- Barra superior -->
   <div id="header">
     <input type="text" id="usernameInput" placeholder="Tu nombre" value="Usuario">
     <input type="text" id="roomInput" placeholder="Sala" value="general">
     <button onclick="updateUserAndRoom()">Actualizar</button>
   </div>
 
-  <!-- Chat -->
   <ul id="messages"></ul>
   
   <form id="form">
@@ -120,24 +116,21 @@
       socket = io();
       socket.emit('join room', { username, room });
 
-      // Cargar historial
+      // Cargar todo el historial guardado
       socket.on('load messages', (history) => {
         history.forEach(msg => addMessage(msg));
       });
 
-      // Recibir mensajes
+      // Recibir mensajes nuevos
       socket.on('chat message', (data) => {
         addMessage(data);
       });
     }
 
-    // Actualizar nombre y sala
     function updateUserAndRoom() {
       username = document.getElementById("usernameInput").value.trim() || "Usuario";
       room = document.getElementById("roomInput").value.trim() || "general";
-      if (socket) {
-        socket.emit('join room', { username, room });
-      }
+      if (socket) socket.emit('join room', { username, room });
     }
 
     const form = document.getElementById('form');
@@ -169,7 +162,7 @@
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // Iniciar el chat automáticamente al cargar la página
+    // Iniciar automáticamente al cargar la página
     window.onload = startChat;
   </script>
 </body>
